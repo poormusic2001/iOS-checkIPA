@@ -37,6 +37,8 @@
 #
 # pylint: disable=R0912
 
+
+
 from pprint import pprint
 import sys
 import os
@@ -47,6 +49,9 @@ import re
 import zipfile
 import plistlib
 import optparse
+
+from os import listdir
+from os.path import isfile, isdir, join
 
 DEFAULT_ENCODING = 'utf-8'
 VERSION_NUMBER = '1.5'
@@ -218,7 +223,7 @@ class IntegrityCheck(object):
         vertical_spacer = ''
 
         # Heading
-        main_heading = 'IPA File Integrity: "%s"' % (os.path.basename(self.ipa_filename))
+        main_heading = 'Name : "%s"' % (os.path.basename(self.ipa_filename))
 
         txt = []
         txt.append(vertical_spacer)
@@ -229,54 +234,65 @@ class IntegrityCheck(object):
         # Info
         provisioned_devices = self.get_provisioned_devices()
         txt.append('Info')
-        txt.append('-' * len('Info'))
+        txt.append('============================================')
 
         if 'CFBundleName' in self.data:
-            txt.append('  Name: %s' % (self.data['CFBundleName']))
+            txt.append('  [CFBundleName]: %s' % (self.data['CFBundleName']))
 
-        if 'CFBundleVersion' in self.data:
-            txt.append('  Version: %s' % (self.data['CFBundleVersion']))
+        if 'CFBundleDisplayName' in self.data:
+            txt.append('  [CFBundleDisplayName]: %s' % (self.data['CFBundleDisplayName']))    
 
-        if ('ExpirationDate' in self.profile):
-            txt.append('  Expiration Date: %s' % (self.profile['ExpirationDate']))
+        if 'CFBundleIdentifier' in self.data:
+            txt.append('  [CFBundleIdentifier]: %s' % (self.data['CFBundleIdentifier']))                
+
+        if 'CFBundleShortVersionString' in self.data:
+            txt.append('  [CFBundleShortVersionString]: %s' % (self.data['CFBundleShortVersionString']))
+        
+
+        # if ('ExpirationDate' in self.profile):
+        #     txt.append('  Expiration Date: %s' % (self.profile['ExpirationDate']))
 
         if self.ipa_info['adhoc'] and not self.ipa_info['enterprise']:
             ipa_type = 'Ad Hoc/Developer'
         elif self.ipa_info['enterprise'] and not self.ipa_info['adhoc']:
             ipa_type = 'Enterprise'
+
+            if 'TeamName' in self.profile:
+                txt.append('  [TeamName]: %s' % (self.profile['TeamName']))    
         else:
             ipa_type = 'unknown distribution type'
             report_errors.append({'label': 'Distribution', 'description': 'unknown distribution type'})
-        txt.append('  Distribution Profile Type: %s' % (ipa_type))
+        txt.append('  [Distribution Profile Type]: %s' % (ipa_type))
 
-        if len(provisioned_devices) > 0:
-            txt.append('  Provisioned Devices (%d): ' % (len(provisioned_devices)))
-            for udid in provisioned_devices:
-                txt.append('  %s' % (udid))
-        else:
-            txt.append('  Provisioned Devices (0):')
 
-        txt.append(vertical_spacer)
+        # if len(provisioned_devices) > 0:
+        #     txt.append('  Provisioned Devices (%d): ' % (len(provisioned_devices)))
+        #     for udid in provisioned_devices:
+        #         txt.append('  %s' % (udid))
+        # else:
+        #     txt.append('  Provisioned Devices (0):')
+
+        # txt.append(vertical_spacer)
 
         # Warnings
-        txt.append('Warnings')
-        txt.append('-' * len('Warnings'))
-        if len(report_warnings) == 0:
-            txt.append('  none')
-        else:
-            for war in report_warnings:
-                txt.append('  %s: %s' % (war['label'], war['description']))
+        # txt.append('Warnings')
+        # txt.append('-' * len('Warnings'))
+        # if len(report_warnings) == 0:
+        #     txt.append('  none')
+        # else:
+        #     for war in report_warnings:
+        #         txt.append('  %s: %s' % (war['label'], war['description']))
 
-        txt.append(vertical_spacer)
+        # txt.append(vertical_spacer)
 
         # Errors
-        txt.append('Errors')
-        txt.append('-' * len('Errors'))
-        if len(report_errors) == 0:
-            txt.append('  none')
-        else:
-            for err in report_errors:
-                txt.append('  %s: %s' % (err['label'], err['description']))
+        # txt.append('Errors')
+        # txt.append('-' * len('Errors'))
+        # if len(report_errors) == 0:
+        #     txt.append('  none')
+        # else:
+        #     for err in report_errors:
+        #         txt.append('  %s: %s' % (err['label'], err['description']))
 
         txt.append(vertical_spacer)
 
@@ -768,9 +784,50 @@ def main():
     #---------------------------------------------------------------------
     # Instantiate class and perform basic checks before parsing
     #---------------------------------------------------------------------
-    if len(errors) == 0:
-        parse = ParseIPA(ipa_filename)
+    
+    if ipa_filename == '':
+        localPath = './'
+        files = listdir(localPath)
+        for sfile in files:            
+            if sfile.endswith(".ipa"):                
+                ipa_filename = sfile
+                # if len(errors) == 0:
+                parse = ParseIPA(ipa_filename)
 
+                # if not parse.is_valid_zip_archive():
+                #     errors.append('not a valid zip archive [%s]' % (ipa_filename))
+
+                # Mac OS already should have the plutil command utility installed.
+                # The following message is primarily for (Debian-based) Linux systems.
+                # retval = os.system('which plutil >/dev/null')
+                # if retval != 0:
+                #     msg = "The program 'plutil' is currently not installed. You can install it by typing:\n"
+                #     msg += '           sudo apt-get install libplist-utils'
+                #     errors.append(msg)
+                #---------------------------------------------------------------------
+                # print out pre-parse errors
+                #---------------------------------------------------------------------
+                # if len(errors) > 0:
+                #     print('')
+                # for error in errors:
+                #     print('    Error: %s' % (error))
+                #     print("""\n    Usage: $ checkipa -i <filename> [-u "udid udid"] [-v]\n""")
+                # sys.exit(-1)
+                # end if errors
+
+                #---------------------------------------------------------------------
+                # No Errors (yet) - begin program with user-defined parameters
+                #---------------------------------------------------------------------
+                params = {'parse': parse, 'ipa_filename': ipa_filename,
+                    'check_udids': check_udids, 'udids': udids,
+                    'verbose': verbose}
+                process_ipa(params)
+
+            
+    else:        
+        print errors
+        if len(errors) == 0:
+            parse = ParseIPA(ipa_filename)        
         if not parse.is_valid_zip_archive():
             errors.append('not a valid zip archive [%s]' % (ipa_filename))
 
@@ -781,25 +838,25 @@ def main():
             msg = "The program 'plutil' is currently not installed. You can install it by typing:\n"
             msg += '           sudo apt-get install libplist-utils'
             errors.append(msg)
-
-    #---------------------------------------------------------------------
-    # print out pre-parse errors
-    #---------------------------------------------------------------------
-    if len(errors) > 0:
-        print('')
+        #---------------------------------------------------------------------
+        # print out pre-parse errors
+        #---------------------------------------------------------------------
+        if len(errors) > 0:
+            print('')
         for error in errors:
             print('    Error: %s' % (error))
-        print("""\n    Usage: $ checkipa -i <filename> [-u "udid udid"] [-v]\n""")
-        sys.exit(-1)
-    # end if errors
-
-    #---------------------------------------------------------------------
-    # No Errors (yet) - begin program with user-defined parameters
-    #---------------------------------------------------------------------
-    params = {'parse': parse, 'ipa_filename': ipa_filename,
+            print("""\n    Usage: $ checkipa -i <filename> [-u "udid udid"] [-v]\n""")        
+            print '*2-3'
+            sys.exit(-1)
+        # end if errors
+        
+        #---------------------------------------------------------------------
+        # No Errors (yet) - begin program with user-defined parameters
+        #---------------------------------------------------------------------
+        params = {'parse': parse, 'ipa_filename': ipa_filename,
               'check_udids': check_udids, 'udids': udids,
               'verbose': verbose}
-    process_ipa(params)
+        process_ipa(params)
 # end main()
 
 if __name__ == '__main__':
